@@ -1,0 +1,1080 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no, viewport-fit=cover">
+    <!-- iOS PWA -->
+    <meta name="apple-mobile-web-app-capable" content="yes">
+    <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
+    <meta name="apple-mobile-web-app-title" content="Daly Pro">
+    <link rel="apple-touch-icon" href="https://placehold.co/180x180/0f172a/10b981?text=DP">
+    <!-- Android PWA -->
+    <meta name="theme-color" content="#0f172a">
+    <meta name="mobile-web-app-capable" content="yes">
+    <meta name="application-name" content="Daly Pro">
+    <title>DALY PRO | Professional Driver Intelligence</title>
+    <link rel="icon" type="image/png" sizes="192x192" href="https://placehold.co/192x192/0f172a/10b981?text=DP">
+    <link rel="icon" type="image/png" sizes="32x32" href="https://placehold.co/32x32/0f172a/10b981?text=DP">
+    <script>
+    // Dynamic manifest — works on all platforms without base64 encoding issues
+    const manifest = {
+        name: "Daly Pro Driver Intelligence",
+        short_name: "Daly Pro",
+        description: "Professional driver intelligence and route planning for luxury touring in Ireland.",
+        start_url: "./daly-pro.html",
+        display: "standalone",
+        orientation: "portrait",
+        background_color: "#0f172a",
+        theme_color: "#0f172a",
+        categories: ["business", "travel"],
+        icons: [
+            { src: "https://placehold.co/48x48/0f172a/10b981?text=DP", sizes: "48x48", type: "image/png" },
+            { src: "https://placehold.co/72x72/0f172a/10b981?text=DP", sizes: "72x72", type: "image/png" },
+            { src: "https://placehold.co/96x96/0f172a/10b981?text=DP", sizes: "96x96", type: "image/png" },
+            { src: "https://placehold.co/128x128/0f172a/10b981?text=DP", sizes: "128x128", type: "image/png" },
+            { src: "https://placehold.co/144x144/0f172a/10b981?text=DP", sizes: "144x144", type: "image/png" },
+            { src: "https://placehold.co/152x152/0f172a/10b981?text=DP", sizes: "152x152", type: "image/png" },
+            { src: "https://placehold.co/192x192/0f172a/10b981?text=DP", sizes: "192x192", type: "image/png", purpose: "any" },
+            { src: "https://placehold.co/384x384/0f172a/10b981?text=DP", sizes: "384x384", type: "image/png" },
+            { src: "https://placehold.co/512x512/0f172a/10b981?text=DP", sizes: "512x512", type: "image/png", purpose: "any maskable" }
+        ]
+    };
+    const manifestBlob = new Blob([JSON.stringify(manifest)], { type: 'application/json' });
+    const manifestLink = document.createElement('link');
+    manifestLink.rel = 'manifest';
+    manifestLink.href = URL.createObjectURL(manifestBlob);
+    document.head.appendChild(manifestLink);
+    </script>
+    <script src="https://cdn.tailwindcss.com"></script>
+    <link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css" />
+    <script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js"></script>
+
+    <!-- ===== FIREBASE MODULE ===== -->
+    <script type="module">
+        import { initializeApp } from "https://www.gstatic.com/firebasejs/11.6.1/firebase-app.js";
+        import { getFirestore, collection, addDoc, onSnapshot, query, serverTimestamp } from "https://www.gstatic.com/firebasejs/11.6.1/firebase-firestore.js";
+        import { getAuth, signInAnonymously, signInWithCustomToken, onAuthStateChanged } from "https://www.gstatic.com/firebasejs/11.6.1/firebase-auth.js";
+        let db = null, auth = null, appId = 'daly-pro-driver-suite';
+        window.isCloudActive = false;
+        try {
+            if (typeof __firebase_config !== 'undefined') {
+                const firebaseConfig = JSON.parse(__firebase_config);
+                const app = initializeApp(firebaseConfig);
+                db = getFirestore(app);
+                auth = getAuth(app);
+                appId = typeof __app_id !== 'undefined' ? __app_id : 'daly-pro-driver-suite';
+                window.isCloudActive = true;
+            }
+        } catch (e) { console.error("Cloud init skipped:", e); }
+        window.saveJourney = async (journeyData) => {
+            if (!db) return;
+            try {
+                if (!auth.currentUser) await signInAnonymously(auth);
+                await addDoc(collection(db, 'artifacts', appId, 'public', 'data', 'journeys'), {
+                    ...journeyData, createdAt: serverTimestamp()
+                });
+            } catch (err) { console.error("Cloud storage failed:", err); }
+        };
+        if (window.isCloudActive) {
+            onAuthStateChanged(auth, (user) => {
+                if (user && window.renderArchive) startArchiveSync();
+            });
+            const startArchiveSync = () => {
+                const q = query(collection(db, 'artifacts', appId, 'public', 'data', 'journeys'));
+                onSnapshot(q, (snapshot) => {
+                    const journeys = snapshot.docs.map(doc => ({ id: doc.id, ...doc.data() }));
+                    if (window.renderArchive) window.renderArchive(journeys);
+                }, (err) => console.error("Sync error:", err));
+            };
+            const initAuth = async () => {
+                try {
+                    if (typeof __initial_auth_token !== 'undefined' && __initial_auth_token) {
+                        await signInWithCustomToken(auth, __initial_auth_token);
+                    } else { await signInAnonymously(auth); }
+                } catch (e) { console.error("Auth error", e); }
+            };
+            initAuth();
+        } else {
+            setTimeout(() => { if (window.renderArchive) window.renderArchive([]); }, 1000);
+        }
+    </script>
+
+    <style>
+        #map { position: absolute; top: 0; left: 0; right: 0; bottom: 0; width: 100%; height: 100%; z-index: 10; cursor: crosshair; background: #f1f5f9; }
+        .main-container { position: relative; z-index: 20; pointer-events: none; height: 100vh; }
+        .main-container > * { pointer-events: auto; }
+        .day-card { transition: all 0.3s ease; border-left: 4px solid transparent; cursor: pointer; }
+        .day-active { border-left: 8px solid #10b981 !important; background-color: #f0fdf4 !important; transform: translateX(6px); box-shadow: 0 10px 30px rgba(0,0,0,0.1); }
+        #smart-pill { position: fixed; top: 120px; right: 24px; width: 60px; height: 180px; background: #0f172a; border-radius: 99px; display: flex; flex-direction: column; box-shadow: 0 25px 50px -12px rgba(0,0,0,0.5); border: 2px solid #334155; z-index: 10000; }
+        .pill-zone { flex: 1; display: flex; align-items: center; justify-content: center; cursor: pointer; transition: all 0.2s; }
+        #sidebar { transition: transform 0.4s cubic-bezier(0.4, 0, 0.2, 1); z-index: 10001; height: 100dvh; overflow-y: auto; -webkit-overflow-scrolling: touch; }
+        #location-panel { z-index: 11000 !important; transition: transform 0.5s cubic-bezier(0.4, 0, 0.2, 1); }
+        .panel-hidden { transform: translateY(120%); }
+        .panel-visible { transform: translateY(0); }
+        .driver-tool-btn {
+            @apply relative flex flex-col items-center justify-center p-3 rounded-2xl border border-slate-200 bg-white hover:bg-slate-50 transition-all text-[7px] font-black uppercase tracking-widest text-slate-700 shadow-sm active:scale-90;
+        }
+        .tool-active { border-color: #10b981 !important; background: #f0fdf4 !important; }
+        .tool-has-content::after {
+            content: ''; position: absolute; top: 4px; right: 4px;
+            width: 7px; height: 7px; background: #10b981; border-radius: 50%;
+            box-shadow: 0 0 6px #10b981;
+        }
+        .ai-loading { animation: pulse 1.5s infinite; }
+        @keyframes pulse { 0%, 100% { opacity: 1; } 50% { opacity: 0.5; } }
+        .export-btn {
+            @apply px-3 py-2 rounded-xl text-[9px] font-black uppercase tracking-wider transition-all active:scale-90;
+        }
+    </style>
+</head>
+<body class="bg-slate-100 font-sans text-slate-900 overflow-x-hidden relative h-screen">
+
+    <div id="map"></div>
+    <div id="sidebar-overlay" onclick="toggleSidebar()" class="fixed inset-0 bg-black/75 z-[10000] hidden backdrop-blur-md"></div>
+
+    <!-- ===== SIDEBAR ARCHIVE ===== -->
+    <aside id="sidebar" class="fixed inset-y-0 left-0 w-80 bg-white shadow-[40px_0_80px_rgba(0,0,0,0.3)] -translate-x-full lg:translate-x-0 lg:relative lg:flex lg:flex-col border-r border-slate-200">
+        <div class="p-6 border-b border-slate-100 bg-slate-50/50 flex flex-col shrink-0">
+            <button onclick="openScanner()" class="w-full py-4 bg-emerald-600 text-white rounded-2xl font-black text-[10px] uppercase tracking-widest shadow-lg active:scale-95 transition-all mb-4 flex items-center justify-center gap-2">
+                <svg xmlns="http://www.w3.org/2000/svg" class="h-4 w-4" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M4 16l4.586-4.586a2 2 0 012.828 0L16 16m-2-2l1.586-1.586a2 2 0 012.828 0L20 14m-6-6h.01M6 20h14a2 2 0 002-2V6a2 2 0 00-2-2H6a2 2 0 00-2 2v12a2 2 0 002 2z" /></svg>
+                Import Job Documentation
+            </button>
+            <button onclick="exportFullRoute()" class="w-full py-3 bg-slate-900 text-white rounded-2xl font-black text-[10px] uppercase tracking-widest shadow-lg active:scale-95 transition-all mb-4 flex items-center justify-center gap-2">
+                <svg xmlns="http://www.w3.org/2000/svg" class="h-4 w-4" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 10v6m0 0l-3-3m3 3l3-3m2 8H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z" /></svg>
+                Export Full Route Briefing
+            </button>
+            <h2 class="font-black text-[11px] uppercase tracking-[0.4em] text-emerald-600 leading-none">Job Archive</h2>
+            <p class="text-[8px] font-bold text-slate-400 uppercase tracking-widest mt-2 italic text-center">Synchronised</p>
+        </div>
+        <div id="archive-list" class="p-4 space-y-4 bg-white pb-32">
+            <div class="text-center py-10 text-slate-300 text-[10px] font-bold uppercase tracking-widest">Loading Archive...</div>
+        </div>
+    </aside>
+
+    <!-- ===== MAIN OVERLAY ===== -->
+    <div class="main-container flex-1 flex flex-col p-3 md:p-10 pb-44 absolute inset-0">
+        <header class="mb-8 flex items-center gap-4">
+            <div class="bg-emerald-950 text-emerald-400 p-3 rounded-2xl shadow-xl italic font-black text-xl">DP</div>
+            <div class="bg-white/80 backdrop-blur-md p-3 rounded-xl border border-white/40 shadow-sm pointer-events-auto">
+                <h1 class="text-2xl md:text-4xl font-black text-emerald-950 uppercase tracking-tighter italic leading-none">DALY PRO</h1>
+                <p class="text-slate-500 font-bold mt-1 uppercase text-[10px] tracking-[0.3em]">Professional Driver Intelligence</p>
+            </div>
+        </header>
+        <div id="smart-pill">
+            <div class="pill-zone" onclick="toggleSidebar()"><div class="grid grid-cols-2 gap-1 opacity-70"><div class="w-1.5 h-1.5 bg-white rounded-full"></div><div class="w-1.5 h-1.5 bg-white rounded-full"></div><div class="w-1.5 h-1.5 bg-white rounded-full"></div><div class="w-1.5 h-1.5 bg-white rounded-full"></div><div class="w-1.5 h-1.5 bg-white rounded-full"></div><div class="w-1.5 h-1.5 bg-white rounded-full"></div></div></div>
+            <div class="pill-divider h-px bg-slate-700 mx-3 opacity-50"></div>
+            <div class="pill-zone" onclick="goHome()"><svg xmlns="http://www.w3.org/2000/svg" class="h-6 w-6 text-white" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M3 12l2-2m0 0l7-7 7 7M5 10v10a1 1 0 001 1h3m10-11l2 2m-2-2v10a1 1 0 01-1 1h-3m-6 0a1 1 0 001-1v-4a1 1 0 011-1h2a1 1 0 011 1v4a1 1 0 001 1m-6 0h6" /></svg></div>
+            <div class="pill-divider h-px bg-slate-700 mx-3 opacity-50"></div>
+            <div class="pill-zone" onclick="togglePanel()"><svg xmlns="http://www.w3.org/2000/svg" class="h-7 w-7 text-emerald-400" viewBox="0 0 24 24" fill="currentColor"><path d="M12 2L14.4 8.4L21 10.8L14.4 13.2L12 19.6L9.6 13.2L3 10.8L9.6 8.4L12 2Z" /><circle cx="19" cy="5" r="2.5" /></svg></div>
+        </div>
+    </div>
+
+    <!-- ===== LOCATION INTELLIGENCE PANEL ===== -->
+    <div id="location-panel" class="fixed bottom-0 left-0 right-0 bg-white/98 backdrop-blur-3xl rounded-t-[3rem] shadow-[0_-30px_70px_rgba(0,0,0,0.25)] border-t-8 border-emerald-600 panel-hidden lg:max-w-5xl lg:mx-auto flex flex-col h-[85vh]">
+        <!-- Fixed Header -->
+        <div class="shrink-0 flex justify-between items-start p-6 md:p-8 border-b border-slate-100 bg-white/50 backdrop-blur-md rounded-t-[3rem]">
+            <div class="pr-8 text-emerald-900">
+                <h4 id="panel-title" class="font-black uppercase tracking-tighter text-3xl leading-none mb-1 italic text-emerald-950">Select Stop</h4>
+                <p id="panel-desc" class="text-[10px] text-slate-500 italic font-black tracking-widest uppercase">Location Intelligence</p>
+                <p id="panel-meta" class="text-[9px] text-emerald-700 font-bold mt-1 hidden"></p>
+            </div>
+            <button onclick="closePanel()" class="p-3 bg-slate-100 hover:bg-slate-200 rounded-full active:scale-90 border border-slate-200 shadow-sm text-slate-600">
+                <svg xmlns="http://www.w3.org/2000/svg" class="h-8 w-8" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="3" d="M19 9l-7 7-7-7" /></svg>
+            </button>
+        </div>
+
+        <!-- Scrollable Content -->
+        <div class="flex-1 overflow-y-auto p-6 md:p-8 pt-6 pb-24 space-y-5">
+            <!-- Logistics Box -->
+            <div id="info-box" class="bg-emerald-900 text-white p-6 rounded-[2.5rem] border border-emerald-800 shadow-xl">
+                <span id="logistics-label" class="bg-emerald-700 text-[8px] font-black px-2 py-0.5 rounded uppercase tracking-widest block w-max mb-2">Operational Detail</span>
+                <p id="offline-text" class="text-sm leading-relaxed font-bold italic">Select a map marker for location intelligence.</p>
+            </div>
+
+            <!-- Tool Grid -->
+            <div class="grid grid-cols-4 md:grid-cols-8 gap-2" id="tool-grid">
+                <button data-type="brief"        class="driver-tool-btn border-emerald-300">📋 Brief</button>
+                <button data-type="history"      class="driver-tool-btn border-slate-300">📚 History</button>
+                <button data-type="access"       class="driver-tool-btn border-blue-200">🏗️ Access</button>
+                <button data-type="heritage"     class="driver-tool-btn border-amber-200">📜 Heritage</button>
+                <button data-type="gaelic"       class="driver-tool-btn border-green-400">☘️ Gaelic</button>
+                <button data-type="announcement" class="driver-tool-btn border-indigo-200">🎤 PA Script</button>
+                <button data-type="photo"        class="driver-tool-btn border-pink-300">📸 Photo Ops</button>
+                <button data-type="rural"        class="driver-tool-btn border-yellow-300">🚜 Rural</button>
+            </div>
+
+            <!-- AI Response -->
+            <div id="ai-response-area" class="hidden text-sm text-slate-800 bg-emerald-50/70 p-8 rounded-[2.5rem] border border-emerald-100 shadow-lg relative min-h-[140px]">
+                <div class="flex items-center justify-between mb-4">
+                    <span id="ai-type-label" class="text-[9px] font-black bg-emerald-200 text-emerald-900 px-3 py-1 rounded-full uppercase tracking-widest">Intelligence Report</span>
+                    <button onclick="copyAiText()" class="text-[10px] font-black text-emerald-700 uppercase underline decoration-2 active:scale-90">Copy</button>
+                </div>
+                <div id="ai-text" class="leading-relaxed font-medium text-slate-800 text-[14px] md:text-[15px] space-y-2"></div>
+            </div>
+
+            <!-- Export Bar -->
+            <div id="export-bar" class="hidden bg-slate-900 p-4 rounded-2xl flex flex-wrap gap-2 items-center">
+                <span class="text-[8px] font-black text-slate-400 uppercase tracking-widest mr-auto">Send to Device</span>
+                <button onclick="shareBriefing('native')" class="export-btn bg-white text-slate-900">📤 Share</button>
+                <button onclick="shareBriefing('sms')" class="export-btn bg-emerald-600 text-white">💬 SMS</button>
+                <button onclick="shareBriefing('whatsapp')" class="export-btn bg-green-600 text-white">📱 WhatsApp</button>
+                <button onclick="shareBriefing('copy')" class="export-btn bg-slate-700 text-white">📋 Copy</button>
+                <button onclick="shareBriefing('download')" class="export-btn bg-slate-600 text-white">📥 Save</button>
+            </div>
+
+            <!-- Driver Notes -->
+            <div>
+                <label class="text-[9px] font-black uppercase tracking-widest text-slate-500 block mb-2">Driver Notes</label>
+                <textarea id="driver-notes" oninput="onNotesInput(event)" placeholder="Record observations, parking details, timing adjustments..." class="w-full p-4 bg-white border border-slate-200 rounded-2xl text-sm resize-none h-24 outline-none focus:border-emerald-500 font-medium text-slate-700"></textarea>
+            </div>
+
+            <!-- Follow-up Chat -->
+            <div class="flex gap-2 bg-slate-100 p-2 rounded-3xl border border-slate-200 focus-within:border-emerald-500 transition-all shadow-inner">
+                <input id="chat-input" type="text" placeholder="Ask a question about this location..." class="flex-1 bg-transparent px-4 py-3 text-sm outline-none font-medium text-slate-800 placeholder-slate-400" onkeydown="if(event.key==='Enter')askManualQuestion()">
+                <button onclick="askManualQuestion()" class="bg-emerald-600 text-white p-3 rounded-full shadow-lg active:scale-90 transition-all flex items-center justify-center">
+                    <svg xmlns="http://www.w3.org/2000/svg" class="h-5 w-5" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 19l9 2-9-18-9 18 9-2zm0 0v-8" /></svg>
+                </button>
+            </div>
+        </div>
+    </div>
+
+    <!-- ===== JOB SCANNER MODAL ===== -->
+    <div id="scan-modal" class="fixed inset-0 bg-slate-900/95 backdrop-blur-xl flex items-center justify-center p-6 hidden z-[20000]">
+        <div class="bg-white w-full max-w-xl rounded-[3rem] shadow-2xl p-8 space-y-6">
+            <div class="flex justify-between items-center border-b border-slate-100 pb-4">
+                <h3 class="font-black text-xl text-emerald-900 uppercase italic leading-none">Job Documentation Scanner</h3>
+                <button onclick="closeScanner()" class="text-slate-400 p-2">
+                    <svg xmlns="http://www.w3.org/2000/svg" class="h-6 w-6" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M6 18L18 6M6 6l12 12" /></svg>
+                </button>
+            </div>
+            <div class="space-y-4 text-center">
+                <div class="bg-slate-50 border-2 border-dashed border-emerald-200 rounded-[2rem] p-8 hover:bg-emerald-100/50 transition-all">
+                    <label class="cursor-pointer block">
+                        <input type="file" id="job-photos" accept="image/*" multiple class="hidden" onchange="handlePhotoSelection(event)">
+                        <div class="space-y-3">
+                            <div class="w-16 h-16 bg-emerald-600 text-white rounded-full flex items-center justify-center mx-auto shadow-lg">
+                                <svg xmlns="http://www.w3.org/2000/svg" class="h-8 w-8" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M4 16l4.586-4.586a2 2 0 012.828 0L16 16m-2-2l1.586-1.586a2 2 0 012.828 0L20 14m-6-6h.01M6 20h14a2 2 0 002-2V6a2 2 0 00-2-2H6a2 2 0 00-2 2v12a2 2 0 002 2z" /></svg>
+                            </div>
+                            <p class="text-sm font-black uppercase text-emerald-900">Select Job Card Screenshots</p>
+                            <p id="photo-count" class="text-[10px] text-slate-400 font-bold uppercase mt-1 tracking-widest italic text-center">Images compressed for processing.</p>
+                        </div>
+                    </label>
+                </div>
+            </div>
+            <button id="process-btn" onclick="processNewJob()" class="w-full py-5 bg-emerald-600 text-white rounded-[2rem] font-black uppercase text-xs tracking-[0.2em] shadow-xl active:scale-95 transition-all opacity-50" disabled>
+                Awaiting Documentation...
+            </button>
+        </div>
+    </div>
+
+    <!-- ===== MAIN APPLICATION SCRIPT ===== -->
+    <script>
+    // ========================================
+    // CONFIGURATION
+    // ========================================
+    const apiKey = ""; // Enter your Gemini API key here
+    const DRIVER_PHONE = "0858733395";
+    const DRIVER_PHONE_INTL = "353858733395";
+
+    // Platform detection for cross-platform SMS
+    const isIOS = /iPad|iPhone|iPod/.test(navigator.userAgent) || (navigator.platform === 'MacIntel' && navigator.maxTouchPoints > 1);
+    const isAndroid = /Android/.test(navigator.userAgent);
+    const SMS_SEPARATOR = isIOS ? '?&body=' : '?body='; // iOS uses ?& , Android uses ?
+
+    // PWA install prompt (Android)
+    let deferredInstallPrompt = null;
+    window.addEventListener('beforeinstallprompt', (e) => {
+        e.preventDefault();
+        deferredInstallPrompt = e;
+        showInstallBanner();
+    });
+
+    function showInstallBanner() {
+        if (document.getElementById('install-banner')) return;
+        const banner = document.createElement('div');
+        banner.id = 'install-banner';
+        banner.className = 'fixed top-0 left-0 right-0 bg-emerald-600 text-white p-4 flex items-center justify-between z-[30000] shadow-xl';
+        banner.innerHTML = `
+            <div class="flex items-center gap-3">
+                <span class="font-black text-lg italic">DP</span>
+                <div>
+                    <p class="font-black text-sm">Install Daly Pro</p>
+                    <p class="text-[10px] opacity-80">Add to home screen for full-screen access</p>
+                </div>
+            </div>
+            <div class="flex gap-2">
+                <button onclick="dismissInstall()" class="px-3 py-2 text-[10px] font-bold uppercase opacity-80">Later</button>
+                <button onclick="triggerInstall()" class="px-4 py-2 bg-white text-emerald-700 rounded-xl text-[10px] font-black uppercase">Install</button>
+            </div>`;
+        document.body.appendChild(banner);
+    }
+
+    async function triggerInstall() {
+        if (!deferredInstallPrompt) return;
+        deferredInstallPrompt.prompt();
+        const result = await deferredInstallPrompt.userChoice;
+        deferredInstallPrompt = null;
+        dismissInstall();
+    }
+
+    function dismissInstall() {
+        const banner = document.getElementById('install-banner');
+        if (banner) banner.remove();
+    }
+
+    // Detect standalone mode (already installed)
+    const isStandalone = window.matchMedia('(display-mode: standalone)').matches || window.navigator.standalone === true;
+    window.addEventListener('appinstalled', () => { dismissInstall(); });
+
+    // ========================================
+    // STATE
+    // ========================================
+    let map, activeRouteLine, lastSelectedLoc, selectedImages = [], activeBriefingType = null;
+    const markers = [];
+    let briefingStore = {};
+    let currentJob = null;
+
+    // Load persisted briefings from localStorage
+    try {
+        const saved = localStorage.getItem('dalyPro_briefings');
+        if (saved) briefingStore = JSON.parse(saved);
+    } catch(e) {}
+
+    function saveBriefingStore() {
+        try { localStorage.setItem('dalyPro_briefings', JSON.stringify(briefingStore)); } catch(e) {}
+    }
+
+    function storeBriefing(locName, type, content) {
+        if (!briefingStore[locName]) briefingStore[locName] = {};
+        briefingStore[locName][type] = content;
+        saveBriefingStore();
+    }
+
+    // ========================================
+    // BASELINE DATA
+    // ========================================
+    const nicoleBaseline = {
+        title: "Nicole Michael",
+        pax: 12,
+        dates: "Active",
+        stops: [
+            { name: "Kinnitty Castle", lat: 53.1023, lng: -7.7011, info: "Day 1 Pickup — 12 Pax", day: 1 },
+            { name: "Rock of Cashel", lat: 52.5204, lng: -7.8891, info: "Day 1 — Heritage site visit, allow 90 min", day: 1 },
+            { name: "Blarney Castle", lat: 51.9291, lng: -8.5708, info: "Day 1 — Coach park available. 60-90 min visit", day: 1 },
+            { name: "Waterville", lat: 51.8282, lng: -10.1747, info: "Day 2 — Coastal stop, photo opportunity", day: 2 },
+            { name: "Cliffs of Moher", lat: 52.9719, lng: -9.4265, info: "Day 3 — Pre-book parking. Allow 2 hours minimum", day: 3 },
+            { name: "Galway City", lat: 53.2743, lng: -9.0491, info: "Night 3 — Overnight. Confirm accommodation", day: 3 },
+            { name: "Dublin City", lat: 53.3498, lng: -6.2603, info: "Final transfer — Airport or hotel dropoff", day: 4 }
+        ]
+    };
+
+    // ========================================
+    // BRIEFING TYPE DEFINITIONS
+    // ========================================
+    const BRIEFING_TYPES = {
+        brief: {
+            label: 'Operational Brief',
+            system: 'You are a professional driver intelligence system for luxury coach touring in Ireland. Provide structured, accurate, operationally relevant information. Use clear headings. Prioritise actionable details.',
+            prompt: (name) => `Provide a comprehensive operational briefing for ${name}, Ireland.
+
+OVERVIEW: 2-3 sentence summary of significance and what guests experience.
+KEY FACTS: 5 essential facts — dates, figures, designations, admission fees if applicable.
+LOGISTICS: Coach parking location and capacity, walking distance from parking, terrain difficulty, wheelchair accessibility, nearest facilities (toilets, cafe, first aid), opening hours.
+RECOMMENDED DURATION: How long to allocate for a visiting group.
+TALKING POINTS: 3-4 engaging facts suitable for a coach PA announcement.
+WEATHER CONSIDERATIONS: Exposure level and shelter options.`
+        },
+        history: {
+            label: 'Historical Context',
+            system: 'You are a professional Irish history briefing system. Provide accurate, well-sourced historical information organised chronologically.',
+            prompt: (name) => `Provide a detailed historical briefing for ${name}, Ireland.
+
+TIMELINE: Key dates and events in chronological order, from earliest records to present.
+KEY FIGURES: Notable historical figures associated with this location, with their role and dates.
+ARCHITECTURAL PERIODS: Construction phases, styles, and notable features if applicable.
+HISTORICAL SIGNIFICANCE: Why this place matters in the context of Irish and European history.
+PRESERVATION STATUS: Heritage designations, restoration work, current management.
+CONNECTIONS: Links to other major historical sites commonly visited on touring routes.`
+        },
+        access: {
+            label: 'Terrain & Access',
+            system: 'You are a professional logistics and terrain assessment system for touring coaches in Ireland. Provide precise, practical information.',
+            prompt: (name) => `Provide terrain and access intelligence for ${name}, Ireland.
+
+APPROACH: Best road approach for a full-size touring coach (53-seater). Note any road restrictions, low bridges, or tight turns.
+COACH PARKING: Exact parking arrangements — designated coach park, capacity, surface type, cost, pre-booking requirements.
+WALKING ROUTE: Distance from coach park to main attraction, terrain type, gradient, surface condition.
+ACCESSIBILITY: Wheelchair and mobility scooter access. Any steps, uneven ground, or steep sections.
+FACILITIES: Toilets (including accessible), cafe/restaurant, gift shop, shelter/covered areas, first aid.
+SAFETY NOTES: Cliff edges, unguarded drops, slippery surfaces, areas to brief guests about.
+WET WEATHER PLAN: What to do if weather deteriorates — covered alternatives, shortened route.`
+        },
+        heritage: {
+            label: 'Cultural Heritage',
+            system: 'You are a professional Irish cultural heritage briefing system. Provide rich, accurate cultural context that enhances the touring experience.',
+            prompt: (name) => `Provide cultural heritage intelligence for ${name}, Ireland.
+
+MYTHOLOGY: Associated myths, legends, and folklore traditions. Include key characters and storylines.
+LOCAL TRADITIONS: Seasonal events, festivals, customs associated with this area.
+LITERARY CONNECTIONS: Links to Irish literature, poetry, or notable writers.
+MUSIC & ARTS: Traditional music connections, local arts heritage, craft traditions.
+SPIRITUAL SIGNIFICANCE: Religious or spiritual history and traditions.
+UNESCO/HERITAGE: Official designations, heritage status, conservation efforts.
+CULTURAL CONTEXT: How this site fits within the broader narrative of Irish cultural identity.`
+        },
+        gaelic: {
+            label: 'Irish Language',
+            system: 'You are an Irish language and cultural naming expert. Provide accurate Gaelic language context with phonetic pronunciation guides.',
+            prompt: (name) => `Provide Irish language context for ${name}, Ireland.
+
+PLACE NAME: The Irish (Gaeilge) name for this location.
+ETYMOLOGY: Literal English translation and meaning behind the Irish name.
+PRONUNCIATION: Clear phonetic guide that an English speaker can follow.
+LOCAL NAMES: Irish names for nearby features, rivers, mountains mentioned on the route.
+USEFUL PHRASES: 5-6 Irish phrases a driver might use with guests (greetings, toasts, place descriptions) with pronunciation.
+GAELTACHT STATUS: Whether this area is in or near a Gaeltacht region.
+SIGNAGE: Notes on bilingual signage guests will encounter.
+LANGUAGE HERITAGE: Brief note on the Irish language history in this area.`
+        },
+        announcement: {
+            label: 'PA Announcement',
+            system: 'You are a professional script writer for luxury touring coaches in Ireland. Write polished, engaging PA announcements that are informative and authoritative. The driver reads these aloud on approach to each stop.',
+            prompt: (name) => `Write a professional 90-second coach PA announcement for approaching ${name}, Ireland.
+
+Requirements:
+- Opening: Attention-getting introduction as the stop comes into view.
+- Key information: 3-4 essential facts delivered engagingly — historical significance, what makes it special.
+- Practical instructions: What guests will see, recommended walking route, estimated time needed.
+- Footwear/weather advisory if relevant.
+- Meeting point and return time format: "Please be back at the coach by [time]. I will be parked [location]."
+- Closing: Enthusiastic but professional send-off.
+- Tone: Authoritative, warm, knowledgeable. Not overly casual.
+- Format: Ready to read aloud. Use natural speech patterns. Mark suggested pauses with [pause].`
+        },
+        photo: {
+            label: 'Photo Opportunities',
+            system: 'You are a professional photography advisor for touring groups in Ireland. Provide practical, specific guidance for both amateur and professional photographers.',
+            prompt: (name) => `Provide photography intelligence for ${name}, Ireland.
+
+TOP PHOTO SPOTS: 4-5 specific locations with descriptions of the composition and what makes each shot compelling.
+BEST ANGLES: Recommended camera positions and directions for the most impactful images.
+LIGHTING: Optimal time of day, direction of light at different times, golden hour considerations.
+GROUP PHOTOS: Best locations for group shots with the landmark visible. Where to position a large group.
+INSTAGRAM/SOCIAL: Most photogenic compositions that work well on social media.
+SEASONAL VARIATIONS: How the scene changes across seasons — best time of year.
+DRONE POLICY: Whether drone photography is permitted.
+EQUIPMENT TIPS: Any specific recommendations (wide angle, telephoto, etc.).`
+        },
+        rural: {
+            label: 'Rural Intelligence',
+            system: 'You are a professional rural and agricultural intelligence system for Ireland. Provide accurate information about farming, land use, and rural life.',
+            prompt: (name) => `Provide rural and agricultural intelligence for the area around ${name}, Ireland.
+
+FARMING: Primary farming types in this area — livestock breeds, crop types, dairy/beef/sheep.
+LAND USE: How the landscape has been shaped by agriculture. Field patterns, stone walls, hedgerows.
+SEASONAL ACTIVITY: What farming activities guests might observe at different times of year.
+LOCAL PRODUCE: Notable food products, artisan producers, farmers markets in the area.
+RURAL ECONOMY: How the local economy operates — tourism, farming, fishing, industry.
+ENVIRONMENTAL FEATURES: Bogs, wetlands, protected habitats, geological features.
+WILDLIFE: Notable bird species, marine life, or animals guests might spot.
+CONVERSATION POINTS: Interesting rural facts a driver can share to enrich the journey between stops.`
+        }
+    };
+
+    // ========================================
+    // NETWORK UTILITIES
+    // ========================================
+    const fetchWithRetry = async (url, options, maxRetries = 5) => {
+        let delay = 1000;
+        for (let i = 0; i < maxRetries; i++) {
+            try {
+                const response = await fetch(url, options);
+                if (response.ok) return await response.json();
+                if (response.status === 429 || response.status >= 500) {
+                    await new Promise(r => setTimeout(r, delay));
+                    delay *= 2;
+                    continue;
+                }
+                const errData = await response.json().catch(() => ({}));
+                throw new Error(errData.error?.message || `API Error ${response.status}`);
+            } catch (err) {
+                if (i === maxRetries - 1) throw err;
+                await new Promise(r => setTimeout(r, delay));
+                delay *= 2;
+            }
+        }
+        throw new Error("Connection failed after retries");
+    };
+
+    // ========================================
+    // IMAGE PROCESSING
+    // ========================================
+    async function compressImage(dataUrl) {
+        return new Promise((resolve) => {
+            const img = new Image();
+            img.onload = () => {
+                const canvas = document.createElement('canvas');
+                const ctx = canvas.getContext('2d');
+                const maxSize = 1200;
+                let width = img.width, height = img.height;
+                if (width > height) { if (width > maxSize) { height *= maxSize / width; width = maxSize; } }
+                else { if (height > maxSize) { width *= maxSize / height; height = maxSize; } }
+                canvas.width = width; canvas.height = height;
+                ctx.drawImage(img, 0, 0, width, height);
+                resolve(canvas.toDataURL('image/jpeg', 0.6).split(',')[1]);
+            };
+            img.src = dataUrl;
+        });
+    }
+
+    async function handlePhotoSelection(event) {
+        const files = Array.from(event.target.files);
+        const countLabel = document.getElementById('photo-count');
+        countLabel.innerText = "Processing images...";
+        selectedImages = [];
+        for (const file of files) {
+            const dataUrl = await new Promise(r => { const reader = new FileReader(); reader.onload = () => r(reader.result); reader.readAsDataURL(file); });
+            const base64 = await compressImage(dataUrl);
+            selectedImages.push({ data: base64, mimeType: "image/jpeg" });
+        }
+        countLabel.innerText = `${files.length} image${files.length > 1 ? 's' : ''} ready`;
+        document.getElementById('process-btn').disabled = false;
+        document.getElementById('process-btn').style.opacity = "1";
+        document.getElementById('process-btn').innerText = "Process Documentation";
+    }
+
+    // ========================================
+    // JOB SCANNER (Enhanced)
+    // ========================================
+    async function processNewJob() {
+        if (!apiKey) { alert("API key required. Set the apiKey variable in the source."); return; }
+        const btn = document.getElementById('process-btn');
+        btn.innerText = "Analysing Documentation..."; btn.disabled = true;
+
+        const systemPrompt = `You are a professional tour logistics extraction system. Analyse these job card screenshots and extract ALL available information with precision.
+
+Output strict JSON:
+{
+    "title": "Client Full Name",
+    "pax": 0,
+    "dates": "Start date - End date",
+    "vehicle": "Coach type if mentioned",
+    "hotel": "Accommodation details if visible",
+    "specialRequirements": "Dietary, mobility, language, or other requirements",
+    "mealBookings": "Any restaurant or meal arrangements noted",
+    "emergencyContact": "Emergency contact if visible",
+    "stops": [
+        {
+            "name": "Location Name",
+            "lat": 0.0,
+            "lng": 0.0,
+            "info": "Complete logistics detail — day number, timing, duration, bookings, special instructions",
+            "day": 1,
+            "time": "HH:MM if available",
+            "duration": "Estimated or specified duration",
+            "bookingRef": "Any reference numbers"
+        }
+    ]
+}
+
+Extract every visible detail. Provide accurate GPS coordinates for all Irish locations. Include all timing, booking references, and special instructions. If information is partially visible or unclear, note it in the relevant field.`;
+
+        const parts = [{ text: "Analyse these job documentation screenshots and extract all operational information:" }];
+        selectedImages.forEach(img => parts.push({ inlineData: { mimeType: img.mimeType, data: img.data } }));
+
+        try {
+            const result = await fetchWithRetry(`https://generativelanguage.googleapis.com/v1beta/models/gemini-2.5-flash-preview-09-2025:generateContent?key=${apiKey}`, {
+                method: 'POST', headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({
+                    contents: [{ role: "user", parts }],
+                    systemInstruction: { parts: [{ text: systemPrompt }] },
+                    generationConfig: { responseMimeType: "application/json" }
+                })
+            });
+            const cleanJson = result.candidates[0].content.parts[0].text.replace(/```json/g, "").replace(/```/g, "").trim();
+            const newJob = JSON.parse(cleanJson);
+            currentJob = newJob;
+            if (window.saveJourney) await window.saveJourney(newJob);
+            plotRoute(newJob.stops);
+            closeScanner();
+        } catch (err) {
+            console.error("Scanner error:", err);
+            alert("Processing failed. Verify documentation quality and retry.");
+        } finally {
+            btn.innerText = "Process Documentation"; btn.disabled = false;
+        }
+    }
+
+    // ========================================
+    // MAP
+    // ========================================
+    function initMap() {
+        if (map) return;
+        map = L.map('map', { zoomControl: false, tap: true }).setView([52.8, -8.5], 7);
+        L.tileLayer('https://{s}.basemaps.cartocdn.com/rastertiles/voyager/{z}/{x}/{y}{r}.png', {
+            attribution: '&copy; CartoDB'
+        }).addTo(map);
+        currentJob = nicoleBaseline;
+        plotRoute(nicoleBaseline.stops);
+        map.on('click', onMapClick);
+        setTimeout(() => map.invalidateSize(), 500);
+    }
+
+    function plotRoute(stops) {
+        markers.forEach(m => map.removeLayer(m));
+        markers.length = 0;
+        if (activeRouteLine) map.removeLayer(activeRouteLine);
+        const coords = stops.map(s => {
+            const marker = L.marker([s.lat, s.lng]).addTo(map);
+            marker.on('click', (e) => { L.DomEvent.stopPropagation(e); showPanel(s); });
+            markers.push(marker);
+            return [s.lat, s.lng];
+        });
+        activeRouteLine = L.polyline(coords, { color: '#10b981', weight: 6, opacity: 0.8, dashArray: '10, 10' }).addTo(map);
+        map.fitBounds(activeRouteLine.getBounds().pad(0.5));
+        if (stops.length > 0) showPanel(stops[0]);
+    }
+
+    async function onMapClick(e) {
+        const { lat, lng } = e.latlng;
+        showPanel({ name: "Locating...", desc: "Resolving coordinates", lat, lng });
+        try {
+            const resp = await fetch(`https://nominatim.openstreetmap.org/reverse?format=json&lat=${lat}&lon=${lng}&zoom=10`);
+            const data = await resp.json();
+            showPanel({
+                name: data.address.town || data.address.village || data.address.city || "Local Area",
+                desc: `County ${data.address.county || 'Ireland'}`,
+                lat, lng
+            });
+        } catch(e) {
+            showPanel({ name: "Unknown Location", desc: "No data available", lat, lng });
+        }
+    }
+
+    // ========================================
+    // LOCATION PANEL
+    // ========================================
+    function showPanel(loc) {
+        lastSelectedLoc = loc;
+        activeBriefingType = null;
+        document.getElementById('panel-title').innerText = loc.name;
+        document.getElementById('panel-desc').innerText = loc.desc || "Location Intelligence";
+        document.getElementById('offline-text').innerText = loc.info || "Select a briefing type below to begin research.";
+
+        // Show job meta if available
+        const metaEl = document.getElementById('panel-meta');
+        if (currentJob && currentJob.pax) {
+            metaEl.innerText = `${currentJob.title || 'Active Job'} — ${currentJob.pax} Pax — ${currentJob.dates || ''}`;
+            metaEl.classList.remove('hidden');
+        } else {
+            metaEl.classList.add('hidden');
+        }
+
+        // Load driver notes
+        const notesEl = document.getElementById('driver-notes');
+        const stored = briefingStore[loc.name];
+        notesEl.value = (stored && stored.notes) || '';
+
+        document.getElementById('location-panel').classList.replace('panel-hidden', 'panel-visible');
+        document.getElementById('ai-response-area').classList.add('hidden');
+        document.getElementById('export-bar').classList.add('hidden');
+        updateToolIndicators(loc.name);
+    }
+
+    function updateToolIndicators(locName) {
+        const stored = briefingStore[locName] || {};
+        document.querySelectorAll('#tool-grid button').forEach(btn => {
+            const type = btn.dataset.type;
+            btn.classList.remove('tool-active', 'tool-has-content');
+            if (stored[type]) btn.classList.add('tool-has-content');
+            if (type === activeBriefingType) btn.classList.add('tool-active');
+        });
+    }
+
+    // ========================================
+    // AI BRIEFING ENGINE
+    // ========================================
+    async function callBard(loc, type, customQuestion) {
+        if (!apiKey) {
+            const aiArea = document.getElementById('ai-response-area');
+            const aiText = document.getElementById('ai-text');
+            aiArea.classList.remove('hidden');
+            document.getElementById('ai-type-label').innerText = 'Configuration Required';
+            aiText.innerHTML = '<p class="text-amber-700 font-bold">Gemini API key is not configured. Set the <code>apiKey</code> variable in the page source to activate intelligence features.</p>';
+            return;
+        }
+
+        const config = BRIEFING_TYPES[type];
+        const aiArea = document.getElementById('ai-response-area');
+        const aiText = document.getElementById('ai-text');
+        const typeLabel = document.getElementById('ai-type-label');
+
+        aiArea.classList.remove('hidden');
+        activeBriefingType = type || null;
+        typeLabel.innerText = config ? config.label : 'Follow-up Response';
+        aiText.innerHTML = '<span class="ai-loading font-black text-emerald-600 uppercase text-[10px] tracking-widest">Generating briefing...</span>';
+        updateToolIndicators(loc.name);
+
+        const systemPrompt = config ? config.system : BRIEFING_TYPES.brief.system;
+        const userPrompt = customQuestion
+            ? `Regarding ${loc.name}, Ireland: ${customQuestion}`
+            : config.prompt(loc.name);
+
+        try {
+            const result = await fetchWithRetry(`https://generativelanguage.googleapis.com/v1beta/models/gemini-2.5-flash-preview-09-2025:generateContent?key=${apiKey}`, {
+                method: 'POST', headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({
+                    contents: [{ role: "user", parts: [{ text: userPrompt }] }],
+                    systemInstruction: { parts: [{ text: systemPrompt }] }
+                })
+            });
+            const text = result.candidates[0].content.parts[0].text;
+            aiText.innerHTML = formatAiResponse(text);
+
+            if (type && type !== 'chat') {
+                storeBriefing(loc.name, type, text);
+                updateToolIndicators(loc.name);
+            }
+            document.getElementById('export-bar').classList.remove('hidden');
+        } catch (err) {
+            console.error("Briefing error:", err);
+            aiText.innerHTML = `<p class="text-red-600 font-bold">Connection error: ${err.message}. Check network and API key.</p>`;
+        }
+    }
+
+    function formatAiResponse(text) {
+        return text.split('\n').map(line => {
+            line = line.trim();
+            if (!line) return '';
+            // Markdown headings
+            if (line.match(/^#{1,3}\s/)) {
+                return `<h4 class="font-black text-emerald-900 uppercase text-[12px] mt-5 mb-1 tracking-wide">${line.replace(/^#+\s/, '').replace(/\*\*/g, '')}</h4>`;
+            }
+            // ALL-CAPS headings with colon
+            if (line.match(/^[A-Z][A-Z\s&\/]+:/)) {
+                return `<h4 class="font-black text-emerald-900 uppercase text-[12px] mt-5 mb-1 tracking-wide">${line.replace(/\*\*/g, '')}</h4>`;
+            }
+            // Bold headings
+            if (line.match(/^\*\*[^*]+\*\*:?\s*$/)) {
+                return `<h4 class="font-black text-emerald-900 text-[12px] mt-5 mb-1 tracking-wide">${line.replace(/\*\*/g, '')}</h4>`;
+            }
+            // Bullet points
+            if (line.match(/^[-•*]\s/)) {
+                const content = line.replace(/^[-•*]\s/, '').replace(/\*\*([^*]+)\*\*/g, '<strong>$1</strong>');
+                return `<div class="flex gap-2 ml-2 mb-1"><span class="text-emerald-500 mt-0.5">&#x2022;</span><span>${content}</span></div>`;
+            }
+            // Numbered items
+            if (line.match(/^\d+\.\s/)) {
+                const content = line.replace(/\*\*([^*]+)\*\*/g, '<strong>$1</strong>');
+                return `<div class="ml-2 mb-1">${content}</div>`;
+            }
+            // Regular paragraph
+            const content = line.replace(/\*\*([^*]+)\*\*/g, '<strong>$1</strong>');
+            return `<p class="mb-2">${content}</p>`;
+        }).join('');
+    }
+
+    // ========================================
+    // TOOL BUTTON HANDLERS
+    // ========================================
+    document.getElementById('tool-grid').addEventListener('click', (e) => {
+        const btn = e.target.closest('button[data-type]');
+        if (!btn || !lastSelectedLoc) return;
+        callBard(lastSelectedLoc, btn.dataset.type);
+    });
+
+    function askManualQuestion() {
+        const input = document.getElementById('chat-input');
+        const question = input.value.trim();
+        if (!question || !lastSelectedLoc) return;
+        input.value = '';
+        callBard(lastSelectedLoc, null, question);
+    }
+
+    function copyAiText() {
+        const aiText = document.getElementById('ai-text');
+        const text = aiText.innerText || aiText.textContent;
+        navigator.clipboard.writeText(text).then(() => {
+            const btn = event.target;
+            const original = btn.innerText;
+            btn.innerText = 'Copied';
+            setTimeout(() => btn.innerText = original, 1500);
+        }).catch(() => {
+            // Fallback for older browsers
+            const range = document.createRange();
+            range.selectNodeContents(aiText);
+            const sel = window.getSelection();
+            sel.removeAllRanges();
+            sel.addRange(range);
+            document.execCommand('copy');
+            sel.removeAllRanges();
+        });
+    }
+
+    // ========================================
+    // DRIVER NOTES
+    // ========================================
+    let notesTimeout;
+    function onNotesInput(e) {
+        clearTimeout(notesTimeout);
+        notesTimeout = setTimeout(() => {
+            if (lastSelectedLoc) {
+                storeBriefing(lastSelectedLoc.name, 'notes', e.target.value);
+            }
+        }, 500);
+    }
+
+    // ========================================
+    // EXPORT & SHARING
+    // ========================================
+    function compileBriefing(locName) {
+        const data = briefingStore[locName];
+        if (!data) return `LOCATION: ${locName}\nNo briefing data generated yet.\n`;
+
+        let text = `LOCATION BRIEFING: ${locName.toUpperCase()}\n${'='.repeat(50)}\n\n`;
+        const sections = {
+            brief: 'OPERATIONAL BRIEF',
+            history: 'HISTORICAL CONTEXT',
+            access: 'TERRAIN & ACCESS',
+            heritage: 'CULTURAL HERITAGE',
+            gaelic: 'IRISH LANGUAGE',
+            announcement: 'PA ANNOUNCEMENT',
+            photo: 'PHOTO OPPORTUNITIES',
+            rural: 'RURAL INTELLIGENCE'
+        };
+        for (const [key, label] of Object.entries(sections)) {
+            if (data[key]) {
+                text += `${label}\n${'-'.repeat(40)}\n${data[key]}\n\n`;
+            }
+        }
+        if (data.notes) {
+            text += `DRIVER NOTES\n${'-'.repeat(40)}\n${data.notes}\n\n`;
+        }
+        return text;
+    }
+
+    function compileFullRoute() {
+        const now = new Date();
+        const dateStr = now.toLocaleDateString('en-IE', { day: 'numeric', month: 'long', year: 'numeric' });
+        let text = `DALY PRO — ROUTE BRIEFING PACK\n${'='.repeat(50)}\n`;
+        text += `Generated: ${dateStr}\n`;
+        if (currentJob) {
+            text += `Client: ${currentJob.title || 'N/A'}\n`;
+            if (currentJob.pax) text += `Group Size: ${currentJob.pax} Pax\n`;
+            if (currentJob.dates) text += `Dates: ${currentJob.dates}\n`;
+            if (currentJob.vehicle) text += `Vehicle: ${currentJob.vehicle}\n`;
+            if (currentJob.specialRequirements) text += `Requirements: ${currentJob.specialRequirements}\n`;
+            if (currentJob.mealBookings) text += `Meal Bookings: ${currentJob.mealBookings}\n`;
+        }
+        text += `\n${'='.repeat(50)}\n\n`;
+
+        const stops = currentJob?.stops || nicoleBaseline.stops;
+        stops.forEach((stop, i) => {
+            text += `STOP ${i + 1}: ${stop.name.toUpperCase()}`;
+            if (stop.day) text += ` (Day ${stop.day})`;
+            text += `\n${'-'.repeat(50)}\n`;
+            if (stop.info) text += `Logistics: ${stop.info}\n`;
+            if (stop.time) text += `Time: ${stop.time}\n`;
+            if (stop.duration) text += `Duration: ${stop.duration}\n`;
+            if (stop.bookingRef) text += `Booking Ref: ${stop.bookingRef}\n`;
+            text += '\n';
+
+            if (briefingStore[stop.name]) {
+                text += compileBriefing(stop.name);
+            } else {
+                text += 'No briefing data generated for this stop.\n\n';
+            }
+            text += '\n';
+        });
+        text += `${'='.repeat(50)}\nEND OF BRIEFING PACK\nDaly Pro — Professional Driver Intelligence\n`;
+        return text;
+    }
+
+    async function shareBriefing(method) {
+        if (!lastSelectedLoc) return;
+        const text = compileBriefing(lastSelectedLoc.name);
+        const title = `Briefing: ${lastSelectedLoc.name}`;
+        await executeShare(method, title, text);
+    }
+
+    async function exportFullRoute() {
+        const text = compileFullRoute();
+        const title = `Route Briefing Pack — ${currentJob?.title || 'Active Route'}`;
+        await executeShare('download', title, text);
+        // Also offer other share methods
+        if (confirm('Briefing saved. Send via SMS to your device?')) {
+            await executeShare('sms', title, text);
+        }
+    }
+
+    async function executeShare(method, title, text) {
+        switch(method) {
+            case 'native':
+                if (navigator.share) {
+                    try {
+                        await navigator.share({ title, text });
+                    } catch(e) {
+                        if (e.name !== 'AbortError') await executeShare('copy', title, text);
+                    }
+                } else {
+                    await executeShare('copy', title, text);
+                }
+                break;
+            case 'sms':
+                // Truncate for SMS if extremely long, suggest download for full version
+                const smsText = text.length > 1500
+                    ? text.substring(0, 1400) + '\n\n[Briefing truncated — download full version from the app]'
+                    : text;
+                window.open(`sms:${DRIVER_PHONE}${SMS_SEPARATOR}${encodeURIComponent(smsText)}`);
+                break;
+            case 'whatsapp':
+                const waText = text.length > 4000
+                    ? text.substring(0, 3900) + '\n\n[Truncated — download full version from the app]'
+                    : text;
+                window.open(`https://wa.me/${DRIVER_PHONE_INTL}?text=${encodeURIComponent(waText)}`);
+                break;
+            case 'copy':
+                try {
+                    await navigator.clipboard.writeText(text);
+                    showToast('Copied to clipboard');
+                } catch(e) {
+                    // Fallback
+                    const ta = document.createElement('textarea');
+                    ta.value = text; ta.style.position = 'fixed'; ta.style.opacity = '0';
+                    document.body.appendChild(ta); ta.select(); document.execCommand('copy');
+                    document.body.removeChild(ta);
+                    showToast('Copied to clipboard');
+                }
+                break;
+            case 'download':
+                const safeTitle = title.replace(/[^a-zA-Z0-9\s-]/g, '').replace(/\s+/g, '-').toLowerCase();
+                const blob = new Blob([text], { type: 'text/plain' });
+                const url = URL.createObjectURL(blob);
+                const a = document.createElement('a');
+                a.href = url;
+                a.download = `${safeTitle}.txt`;
+                document.body.appendChild(a);
+                a.click();
+                document.body.removeChild(a);
+                URL.revokeObjectURL(url);
+                showToast('File saved');
+                break;
+        }
+    }
+
+    function showToast(message) {
+        const existing = document.getElementById('toast-msg');
+        if (existing) existing.remove();
+        const toast = document.createElement('div');
+        toast.id = 'toast-msg';
+        toast.className = 'fixed bottom-32 left-1/2 -translate-x-1/2 bg-slate-900 text-white px-6 py-3 rounded-full text-sm font-bold shadow-2xl z-[30000] transition-opacity';
+        toast.innerText = message;
+        document.body.appendChild(toast);
+        setTimeout(() => { toast.style.opacity = '0'; setTimeout(() => toast.remove(), 300); }, 2000);
+    }
+
+    // ========================================
+    // ARCHIVE RENDERING
+    // ========================================
+    window.renderArchive = (cloudJourneys) => {
+        const list = document.getElementById('archive-list');
+        list.innerHTML = "";
+
+        // Baseline card
+        const bCard = document.createElement('div');
+        bCard.className = "day-card bg-slate-950 text-white p-6 rounded-[2.5rem] border-l-8 border-emerald-500 shadow-2xl mb-6";
+        bCard.innerHTML = `
+            <div class="flex justify-between items-center mb-2">
+                <h3 class="font-black text-lg">${nicoleBaseline.title}</h3>
+                <span class="bg-emerald-600 text-[8px] font-black px-2 py-1 rounded uppercase tracking-widest">Active Route</span>
+            </div>
+            <p class="text-slate-400 text-[10px] font-bold mb-4">${nicoleBaseline.stops.length} stops — ${nicoleBaseline.pax} Pax</p>
+            <button onclick="event.stopPropagation(); currentJob = nicoleBaseline; plotRoute(nicoleBaseline.stops); toggleSidebar();" class="w-full py-4 bg-emerald-600 text-white rounded-2xl font-black text-[10px] uppercase tracking-widest active:scale-95 transition-all">Load Route</button>`;
+        list.appendChild(bCard);
+
+        cloudJourneys.sort((a,b) => (b.createdAt?.seconds || 0) - (a.createdAt?.seconds || 0)).forEach(j => {
+            const card = document.createElement('div');
+            card.className = "day-card bg-white p-5 rounded-[2.5rem] border border-slate-200 shadow-sm mb-4";
+            const details = [];
+            if (j.pax) details.push(`${j.pax} Pax`);
+            if (j.dates) details.push(j.dates);
+            details.push(`${j.stops?.length || 0} stops`);
+            card.innerHTML = `
+                <h3 class="font-bold text-slate-800 mb-1">${j.title || 'Imported Job'}</h3>
+                <p class="text-[9px] text-slate-400 font-bold mb-1">${details.join(' — ')}</p>
+                ${j.specialRequirements ? `<p class="text-[9px] text-amber-600 font-bold mb-3">${j.specialRequirements}</p>` : '<div class="mb-3"></div>'}
+                <button class="w-full py-2 bg-slate-100 text-emerald-600 rounded-xl text-[10px] font-black uppercase active:scale-95 transition-all">Load Route</button>`;
+            card.onclick = () => { currentJob = j; plotRoute(j.stops); toggleSidebar(); };
+            list.appendChild(card);
+        });
+    };
+
+    // ========================================
+    // UI CONTROLS
+    // ========================================
+    function toggleSidebar() {
+        document.getElementById('sidebar').classList.toggle('-translate-x-full');
+        document.getElementById('sidebar-overlay').classList.toggle('hidden');
+    }
+    function goHome() {
+        closePanel();
+        if (map) map.setView([52.8, -8.5], 7);
+    }
+    function openScanner() { document.getElementById('scan-modal').classList.remove('hidden'); }
+    function closeScanner() {
+        document.getElementById('scan-modal').classList.add('hidden');
+        selectedImages = [];
+        document.getElementById('photo-count').innerText = "Images compressed for processing.";
+        document.getElementById('process-btn').disabled = true;
+        document.getElementById('process-btn').style.opacity = "0.5";
+        document.getElementById('process-btn').innerText = "Awaiting Documentation...";
+    }
+    function closePanel() { document.getElementById('location-panel').classList.replace('panel-visible', 'panel-hidden'); }
+    function togglePanel() {
+        const p = document.getElementById('location-panel');
+        p.classList.contains('panel-hidden') ? p.classList.replace('panel-hidden', 'panel-visible') : closePanel();
+    }
+
+    // ========================================
+    // SERVICE WORKER & INITIALISE
+    // ========================================
+    if ('serviceWorker' in navigator) {
+        window.addEventListener('load', () => {
+            navigator.serviceWorker.register('sw.js').then((reg) => {
+                console.log('Service worker registered:', reg.scope);
+                // Check for updates periodically
+                setInterval(() => reg.update(), 60 * 60 * 1000);
+            }).catch((err) => {
+                console.log('Service worker registration skipped:', err.message);
+            });
+        });
+    }
+
+    // iOS install hint (iOS has no beforeinstallprompt event)
+    function checkIOSInstallHint() {
+        if (isIOS && !isStandalone && !sessionStorage.getItem('iosHintShown')) {
+            sessionStorage.setItem('iosHintShown', '1');
+            setTimeout(() => {
+                const hint = document.createElement('div');
+                hint.id = 'ios-install-hint';
+                hint.className = 'fixed bottom-4 left-4 right-4 bg-slate-900 text-white p-5 rounded-2xl z-[30000] shadow-2xl flex items-start gap-3';
+                hint.innerHTML = `
+                    <div class="text-3xl">📲</div>
+                    <div class="flex-1">
+                        <p class="font-black text-sm mb-1">Install Daly Pro</p>
+                        <p class="text-[11px] text-slate-300 leading-snug">Tap <strong>Share</strong> <span class="inline-block w-4 h-4 align-middle text-center bg-white/20 rounded text-[10px] leading-4">↑</span> then <strong>"Add to Home Screen"</strong> for full-screen access.</p>
+                    </div>
+                    <button onclick="this.parentElement.remove()" class="text-slate-400 text-xl leading-none">&times;</button>`;
+                document.body.appendChild(hint);
+                setTimeout(() => { if (document.getElementById('ios-install-hint')) hint.remove(); }, 15000);
+            }, 3000);
+        }
+    }
+
+    window.onload = () => {
+        initMap();
+        checkIOSInstallHint();
+    };
+    </script>
+</body>
+</html>
