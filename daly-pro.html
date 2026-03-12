@@ -1152,10 +1152,27 @@ Extract every visible detail. Provide accurate GPS coordinates for all Irish loc
         showToast('API key saved to this device');
     }
 
+    // Check for API key in URL hash (e.g. #apikey=AIzaSy...)
+    function checkHashKey() {
+        const hash = window.location.hash;
+        if (hash && hash.includes('apikey=')) {
+            const key = hash.split('apikey=')[1];
+            if (key && key.startsWith('AIza')) {
+                apiKey = key;
+                localStorage.setItem('dalyPro_apiKey', key);
+                // Remove key from URL bar for safety
+                history.replaceState(null, '', window.location.pathname);
+                showToast('API key installed automatically');
+                return true;
+            }
+        }
+        return false;
+    }
+
     window.onload = () => {
         initMap();
         checkIOSInstallHint();
-        if (!apiKey) {
+        if (!checkHashKey() && !apiKey) {
             setTimeout(() => openSettings(), 1500);
         }
     };
