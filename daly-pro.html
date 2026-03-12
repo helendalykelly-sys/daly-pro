@@ -95,7 +95,7 @@
             };
             initAuth();
         } else {
-            setTimeout(() => { if (window.renderArchive) window.renderArchive([]); }, 1000);
+            setTimeout(() => { if (window.renderArchive) window.renderArchive(getLocalJobs()); }, 1000);
         }
     </script>
 
@@ -105,7 +105,7 @@
         .main-container > * { pointer-events: auto; }
         .day-card { transition: all 0.3s ease; border-left: 4px solid transparent; cursor: pointer; }
         .day-active { border-left: 8px solid #10b981 !important; background-color: #f0fdf4 !important; transform: translateX(6px); box-shadow: 0 10px 30px rgba(0,0,0,0.1); }
-        #smart-pill { position: fixed; top: 120px; right: 24px; width: 60px; height: 180px; background: #0f172a; border-radius: 99px; display: flex; flex-direction: column; box-shadow: 0 25px 50px -12px rgba(0,0,0,0.5); border: 2px solid #334155; z-index: 10000; }
+        #smart-pill { position: fixed; top: 120px; right: 24px; width: 60px; height: 240px; background: #0f172a; border-radius: 99px; display: flex; flex-direction: column; box-shadow: 0 25px 50px -12px rgba(0,0,0,0.5); border: 2px solid #334155; z-index: 10000; }
         .pill-zone { flex: 1; display: flex; align-items: center; justify-content: center; cursor: pointer; transition: all 0.2s; }
         #sidebar { transition: transform 0.4s cubic-bezier(0.4, 0, 0.2, 1); z-index: 10001; height: 100dvh; overflow-y: auto; -webkit-overflow-scrolling: touch; }
         #location-panel { z-index: 11000 !important; transition: transform 0.5s cubic-bezier(0.4, 0, 0.2, 1); }
@@ -166,6 +166,8 @@
             <div class="pill-zone" onclick="goHome()"><svg xmlns="http://www.w3.org/2000/svg" class="h-6 w-6 text-white" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M3 12l2-2m0 0l7-7 7 7M5 10v10a1 1 0 001 1h3m10-11l2 2m-2-2v10a1 1 0 01-1 1h-3m-6 0a1 1 0 001-1v-4a1 1 0 011-1h2a1 1 0 011 1v4a1 1 0 001 1m-6 0h6" /></svg></div>
             <div class="pill-divider h-px bg-slate-700 mx-3 opacity-50"></div>
             <div class="pill-zone" onclick="togglePanel()"><svg xmlns="http://www.w3.org/2000/svg" class="h-7 w-7 text-emerald-400" viewBox="0 0 24 24" fill="currentColor"><path d="M12 2L14.4 8.4L21 10.8L14.4 13.2L12 19.6L9.6 13.2L3 10.8L9.6 8.4L12 2Z" /><circle cx="19" cy="5" r="2.5" /></svg></div>
+            <div class="pill-divider h-px bg-slate-700 mx-3 opacity-50"></div>
+            <div class="pill-zone" onclick="openSettings()"><svg xmlns="http://www.w3.org/2000/svg" class="h-5 w-5 text-slate-400" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M10.325 4.317c.426-1.756 2.924-1.756 3.35 0a1.724 1.724 0 002.573 1.066c1.543-.94 3.31.826 2.37 2.37a1.724 1.724 0 001.066 2.573c1.756.426 1.756 2.924 0 3.35a1.724 1.724 0 00-1.066 2.573c.94 1.543-.826 3.31-2.37 2.37a1.724 1.724 0 00-2.573 1.066c-.426 1.756-2.924 1.756-3.35 0a1.724 1.724 0 00-2.573-1.066c-1.543.94-3.31-.826-2.37-2.37a1.724 1.724 0 00-1.066-2.573c-1.756-.426-1.756-2.924 0-3.35a1.724 1.724 0 001.066-2.573c-.94-1.543.826-3.31 2.37-2.37.996.608 2.296.07 2.572-1.065z" /><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M15 12a3 3 0 11-6 0 3 3 0 016 0z" /></svg></div>
         </div>
     </div>
 
@@ -267,12 +269,32 @@
         </div>
     </div>
 
+    <!-- ===== SETTINGS MODAL ===== -->
+    <div id="settings-modal" class="fixed inset-0 bg-slate-900/95 backdrop-blur-xl flex items-center justify-center p-6 hidden z-[20000]">
+        <div class="bg-white w-full max-w-md rounded-[3rem] shadow-2xl p-8 space-y-6">
+            <div class="flex justify-between items-center border-b border-slate-100 pb-4">
+                <h3 class="font-black text-xl text-emerald-900 uppercase italic leading-none">Settings</h3>
+                <button onclick="closeSettings()" class="text-slate-400 p-2">
+                    <svg xmlns="http://www.w3.org/2000/svg" class="h-6 w-6" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M6 18L18 6M6 6l12 12" /></svg>
+                </button>
+            </div>
+            <div class="space-y-4">
+                <div>
+                    <label class="text-[9px] font-black uppercase tracking-widest text-slate-500 block mb-2">Gemini API Key</label>
+                    <input type="password" id="settings-api-key" placeholder="Paste your Gemini API key here" class="w-full p-4 bg-slate-50 border border-slate-200 rounded-2xl text-sm outline-none focus:border-emerald-500 font-mono text-slate-700">
+                    <p class="text-[9px] text-slate-400 mt-2 font-medium">Your key is stored only on this device. Get a key at <a href="https://aistudio.google.com/apikey" target="_blank" class="text-emerald-600 underline font-bold">aistudio.google.com/apikey</a></p>
+                </div>
+            </div>
+            <button onclick="saveSettings()" class="w-full py-5 bg-emerald-600 text-white rounded-[2rem] font-black uppercase text-xs tracking-[0.2em] shadow-xl active:scale-95 transition-all">Save Settings</button>
+        </div>
+    </div>
+
     <!-- ===== MAIN APPLICATION SCRIPT ===== -->
     <script>
     // ========================================
     // CONFIGURATION
     // ========================================
-    const apiKey = "AIzaSyBAlSJekJ6BDyT2-k4pBSk_7plA94IRm3k";
+    let apiKey = localStorage.getItem('dalyPro_apiKey') || "";
     const DRIVER_PHONE = "0858733395";
     const DRIVER_PHONE_INTL = "353858733395";
 
@@ -348,6 +370,22 @@
         if (!briefingStore[locName]) briefingStore[locName] = {};
         briefingStore[locName][type] = content;
         saveBriefingStore();
+    }
+
+    // ========================================
+    // LOCAL JOB STORAGE
+    // ========================================
+    function getLocalJobs() {
+        try {
+            const saved = localStorage.getItem('dalyPro_jobs');
+            return saved ? JSON.parse(saved) : [];
+        } catch(e) { return []; }
+    }
+    function saveJobLocally(job) {
+        const jobs = getLocalJobs();
+        jobs.push(job);
+        try { localStorage.setItem('dalyPro_jobs', JSON.stringify(jobs)); } catch(e) {}
+        if (window.renderArchive && !window.isCloudActive) window.renderArchive(jobs);
     }
 
     // ========================================
@@ -547,7 +585,7 @@ CONVERSATION POINTS: Interesting rural facts a driver can share to enrich the jo
     // JOB SCANNER (Enhanced)
     // ========================================
     async function processNewJob() {
-        if (!apiKey) { alert("API key required. Set the apiKey variable in the source."); return; }
+        if (!apiKey) { openSettings(); return; }
         const btn = document.getElementById('process-btn');
         btn.innerText = "Analysing Documentation..."; btn.disabled = true;
 
@@ -593,7 +631,9 @@ Extract every visible detail. Provide accurate GPS coordinates for all Irish loc
             });
             const cleanJson = result.candidates[0].content.parts[0].text.replace(/```json/g, "").replace(/```/g, "").trim();
             const newJob = JSON.parse(cleanJson);
+            newJob.createdAt = { seconds: Math.floor(Date.now() / 1000) };
             currentJob = newJob;
+            saveJobLocally(newJob);
             if (window.saveJourney) await window.saveJourney(newJob);
             plotRoute(newJob.stops);
             closeScanner();
@@ -700,7 +740,7 @@ Extract every visible detail. Provide accurate GPS coordinates for all Irish loc
             const aiText = document.getElementById('ai-text');
             aiArea.classList.remove('hidden');
             document.getElementById('ai-type-label').innerText = 'Configuration Required';
-            aiText.innerHTML = '<p class="text-amber-700 font-bold">Gemini API key is not configured. Set the <code>apiKey</code> variable in the page source to activate intelligence features.</p>';
+            aiText.innerHTML = '<p class="text-amber-700 font-bold">Gemini API key is not configured. Tap the <strong>gear icon</strong> on the right to open Settings and enter your key.</p>';
             return;
         }
 
@@ -999,11 +1039,35 @@ Extract every visible detail. Provide accurate GPS coordinates for all Irish loc
             if (j.pax) details.push(`${j.pax} Pax`);
             if (j.dates) details.push(j.dates);
             details.push(`${j.stops?.length || 0} stops`);
+
+            let extraInfo = '';
+            if (j.vehicle) extraInfo += `<div class="flex gap-2 text-[9px] text-slate-500 font-bold"><span class="text-slate-400">Vehicle:</span> ${j.vehicle}</div>`;
+            if (j.hotel) extraInfo += `<div class="flex gap-2 text-[9px] text-slate-500 font-bold"><span class="text-slate-400">Hotel:</span> ${j.hotel}</div>`;
+            if (j.mealBookings) extraInfo += `<div class="flex gap-2 text-[9px] text-slate-500 font-bold"><span class="text-slate-400">Meals:</span> ${j.mealBookings}</div>`;
+            if (j.emergencyContact) extraInfo += `<div class="flex gap-2 text-[9px] text-slate-500 font-bold"><span class="text-slate-400">Emergency:</span> ${j.emergencyContact}</div>`;
+
+            let stopsHtml = '';
+            if (j.stops && j.stops.length > 0) {
+                stopsHtml = '<div class="mt-3 space-y-1 border-t border-slate-100 pt-2">';
+                stopsHtml += '<p class="text-[8px] font-black text-slate-400 uppercase tracking-widest mb-1">Itinerary</p>';
+                j.stops.forEach((s, i) => {
+                    const dayLabel = s.day ? `D${s.day}` : `${i+1}`;
+                    const timeLabel = s.time ? ` ${s.time}` : '';
+                    stopsHtml += `<div class="flex gap-2 items-start text-[9px]">
+                        <span class="bg-emerald-100 text-emerald-700 font-black px-1.5 py-0.5 rounded text-[8px] shrink-0">${dayLabel}${timeLabel}</span>
+                        <div><span class="font-bold text-slate-700">${s.name}</span>${s.duration ? ` <span class="text-slate-400">(${s.duration})</span>` : ''}${s.bookingRef ? ` <span class="text-amber-600 font-bold">Ref: ${s.bookingRef}</span>` : ''}</div>
+                    </div>`;
+                });
+                stopsHtml += '</div>';
+            }
+
             card.innerHTML = `
                 <h3 class="font-bold text-slate-800 mb-1">${j.title || 'Imported Job'}</h3>
                 <p class="text-[9px] text-slate-400 font-bold mb-1">${details.join(' — ')}</p>
-                ${j.specialRequirements ? `<p class="text-[9px] text-amber-600 font-bold mb-3">${j.specialRequirements}</p>` : '<div class="mb-3"></div>'}
-                <button class="w-full py-2 bg-slate-100 text-emerald-600 rounded-xl text-[10px] font-black uppercase active:scale-95 transition-all">Load Route</button>`;
+                ${j.specialRequirements ? `<p class="text-[9px] text-amber-600 font-bold mb-1">${j.specialRequirements}</p>` : ''}
+                ${extraInfo ? `<div class="space-y-0.5 mb-2">${extraInfo}</div>` : ''}
+                ${stopsHtml}
+                <button class="w-full py-2 mt-3 bg-slate-100 text-emerald-600 rounded-xl text-[10px] font-black uppercase active:scale-95 transition-all">Load Route</button>`;
             card.onclick = () => { currentJob = j; plotRoute(j.stops); toggleSidebar(); };
             list.appendChild(card);
         });
@@ -1071,9 +1135,29 @@ Extract every visible detail. Provide accurate GPS coordinates for all Irish loc
         }
     }
 
+    // ========================================
+    // SETTINGS
+    // ========================================
+    function openSettings() {
+        document.getElementById('settings-api-key').value = apiKey || '';
+        document.getElementById('settings-modal').classList.remove('hidden');
+    }
+    function closeSettings() { document.getElementById('settings-modal').classList.add('hidden'); }
+    function saveSettings() {
+        const newKey = document.getElementById('settings-api-key').value.trim();
+        if (!newKey) { alert('Please enter a valid API key.'); return; }
+        apiKey = newKey;
+        localStorage.setItem('dalyPro_apiKey', newKey);
+        closeSettings();
+        showToast('API key saved to this device');
+    }
+
     window.onload = () => {
         initMap();
         checkIOSInstallHint();
+        if (!apiKey) {
+            setTimeout(() => openSettings(), 1500);
+        }
     };
     </script>
 </body>
