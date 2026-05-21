@@ -45,7 +45,7 @@ will be reconciled into this file.
 
 | Authority | Provisions | Bodies | RB refs | Verified |
 |---|---|---|---|---|
-| Consumer Protection Code 2012 (Central Bank) | Ch. 2; Ch. 4; Ch. 7; Ch. 10 | Central Bank | RB-12–RB-15 | ✓ |
+| Consumer Protection Code 2012 (Central Bank) | Ch. 2; Ch. 4; Ch. 7; Ch. 10 | Central Bank | RB-12–RB-15 | ✓ — superseded 24 Mar 2026 (see notes) |
 | SIMI Code of Ethics + Consumer Complaints Service / Arbitration scheme | member code; complaints & arbitration procedure | SIMI | RB-17 | ✓ Verified 2026-05-21 |
 
 ## Notes Carried from §1B
@@ -63,6 +63,14 @@ will be reconciled into this file.
   Industry Standards Tribunal. Active: SIMI Ref 36/26. simi.ie could not be
   retrieved directly (HTTP 403); re-confirm current procedures before formal
   reliance.
+- **RB-12–RB-15** (Consumer Protection Code 2012) — currency-checked
+  2026-05-21 against centralbank.ie. The Consumer Protection Code 2025 came
+  into effect on **24 March 2026** and replaces the 2012 Code (as amended) in
+  its entirety; the 2012 Code is no longer the current in-force code. It
+  remains the applicable instrument for conduct before 24 March 2026; for
+  conduct on or after that date the CPC 2025 applies. Which Code governs a
+  given complaint depends on when the relevant conduct occurred. See Note 3 in
+  `regulatory-framework.md`.
 
 ## Source Documents
 
@@ -74,3 +82,6 @@ will be reconciled into this file.
 - **2026-05-21** — Register created in the `daly-pro` repo at
   `index/AUTHORITY_REGISTER.md`; seeded with §1B authorities RB-01–RB-19;
   RB-16 and RB-17 verified against primary sources.
+- **2026-05-21** — Currency check: Consumer Protection Code 2012 (RB-12–RB-15)
+  confirmed superseded by the Consumer Protection Code 2025 with effect from
+  24 March 2026.

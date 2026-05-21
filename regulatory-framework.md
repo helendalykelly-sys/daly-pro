@@ -13,10 +13,10 @@
 | RB-09 | FSPO | Financial Services and Pensions Ombudsman Act 2017 | s.51 | FSPO jurisdiction | ✓ |
 | RB-10 | FSPO | Financial Services and Pensions Ombudsman Act 2017 | s.60 | Grounds for finding in complainant's favour | ✓ — F2 lock applies to s.56 dispatch |
 | RB-11 | FSPO | Financial Services and Pensions Ombudsman Act 2017 | s.64 | Legally Binding Decision — enforcement | ✓ |
-| RB-12 | Central Bank | Consumer Protection Code 2012 | Chapter 2 | General principles — applies to all regulated firms | ✓ |
-| RB-13 | Central Bank | Consumer Protection Code 2012 | Chapter 4 | Provision of information — disclosure obligations | ✓ |
-| RB-14 | Central Bank | Consumer Protection Code 2012 | Chapter 7 | Claims processing — applies to Utmost (FSPO 304415) | ✓ |
-| RB-15 | Central Bank | Consumer Protection Code 2012 | Chapter 10 | Complaints handling — 5-day/8-week/Final Response Letter framework | ✓ |
+| RB-12 | Central Bank | Consumer Protection Code 2012 | Chapter 2 | General principles — applies to all regulated firms | ✓ — see Note 3 |
+| RB-13 | Central Bank | Consumer Protection Code 2012 | Chapter 4 | Provision of information — disclosure obligations | ✓ — see Note 3 |
+| RB-14 | Central Bank | Consumer Protection Code 2012 | Chapter 7 | Claims processing — applies to Utmost (FSPO 304415) | ✓ — see Note 3 |
+| RB-15 | Central Bank | Consumer Protection Code 2012 | Chapter 10 | Complaints handling — 5-day/8-week/Final Response Letter framework | ✓ — see Note 3 |
 | RB-16 | Central Bank | Central Bank Act 1942 (as amended) | s.33AQ | Central Bank power to impose administrative sanctions at the conclusion of a Part IIIC inquiry | ✓ Verified — see Note 1 |
 | RB-17 | SIMI | SIMI Code of Ethics + Consumer Complaints Service / Arbitration scheme | Member code; complaints & arbitration procedure | Voluntary dispute resolution — written complaint to SIMI within 3 months, free mediation/arbitration, escalation to the SIMI Retail Motor Industry Standards Tribunal. Non-statutory body; jurisdiction derives from membership obligations and CPA 2007 consumer protection framework. Active: SIMI Ref 36/26 | ✓ Verified — see Note 2 |
 | RB-18 | SIMI | Consumer Protection Act 2007 | ss.52–53 | Statutory underpinning for misleading/aggressive practice complaints within SIMI track | ✓ |
@@ -42,12 +42,18 @@ Verified against SIMI consumer-help materials at simi.ie ("SIMI Standards" and "
 
 **Caveat:** simi.ie pages could not be retrieved directly (server returned HTTP 403); content above was confirmed via indexed search summaries of the simi.ie/en/consumer-help pages. A direct check of simi.ie is recommended before formal reliance, and the current published procedures should be re-confirmed at the time of use.
 
+**Note 3 — RB-12 to RB-15: Consumer Protection Code 2012 (currency check).**
+Currency-checked 21 May 2026 against the Central Bank of Ireland. The Central Bank published the Consumer Protection Code 2025 on 24 March 2025; it came into effect on **24 March 2026** and replaces the Consumer Protection Code 2012 (as amended) in its entirety. As of this check the 2012 Code is therefore **no longer the current in-force code**.
+
+The 2012 Code nonetheless remains the applicable instrument for conduct that occurred while it was in force — i.e. before 24 March 2026. For conduct on or after 24 March 2026 the Consumer Protection Code 2025 applies (given effect through the Central Bank's 2025 Consumer Protection Regulations and accompanying Code), and its structure differs from the 2012 Code's chapter scheme. Which Code governs a particular complaint therefore depends on when the relevant conduct took place: RB-12 to RB-15 remain valid citations for pre-24 March 2026 conduct, and a parallel set of CPC 2025 references should be added for any conduct from that date onward.
+
 ### Sources
 
 - Central Bank Act 1942 Revised (updated to 10 July 2023) — Law Reform Commission Revised Acts: <https://revisedacts.lawreform.ie/eli/1942/act/22/section/33AQ/revised/en/html> (s.33AQ text extracted from the official revised-Act consolidation PDF).
 - SIMI — Consumer Help, "SIMI Standards": <https://www.simi.ie/en/consumer-help/simi-standards>
 - SIMI — Consumer Help, "Complaints Service": <https://www.simi.ie/en/consumer-help/complaints-service>
+- Central Bank of Ireland — Consumer Protection Code 2025 (published 24 March 2025; in effect from 24 March 2026, replacing the 2012 Code): <https://www.centralbank.ie/regulation/consumer-protection/consumer-protection-code>
 
 ---
 
-_DATA GAP items RB-16 and RB-17 verified 21 May 2026. Rows RB-01–RB-15, RB-18 and RB-19 carry their pre-existing verification status and were not re-checked as part of this exercise._
+_DATA GAP items RB-16 and RB-17 verified 21 May 2026; RB-12–RB-15 currency-checked 21 May 2026 (see Note 3). Rows RB-01–RB-11, RB-18 and RB-19 carry their pre-existing verification status and were not re-checked as part of this exercise._
